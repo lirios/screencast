@@ -24,8 +24,8 @@
  * $END_LICENSE$
  ***************************************************************************/
 
-#ifndef SCREENCAP_H
-#define SCREENCAP_H
+#ifndef SCREENCAST_H
+#define SCREENCAST_H
 
 #include <QtCore/QObject>
 #include <QtCore/QThread>
@@ -55,12 +55,12 @@ private:
     bool m_stop;
 };
 
-class Screencap : public QObject
+class Screencast : public QObject
 {
     Q_OBJECT
 public:
-    Screencap(QObject *parent = Q_NULLPTR);
-    ~Screencap();
+    Screencast(QObject *parent = Q_NULLPTR);
+    ~Screencast();
 
 protected:
     bool event(QEvent *event) Q_DECL_OVERRIDE;
@@ -98,4 +98,4 @@ public:
     StartupEvent();
 };
 
-#endif // SCREENCAP_H
+#endif // SCREENCAST_H

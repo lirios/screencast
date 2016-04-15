@@ -40,7 +40,7 @@
 #include <Qt5GStreamer/QGst/Parse>
 #include <Qt5GStreamer/QGst/Sample>
 
-#include "screencap.h"
+#include "screencast.h"
 
 /*
  * StartupEvent
@@ -78,10 +78,10 @@ void AppSource::enoughData()
 }
 
 /*
- * Screencap
+ * Screencast
  */
 
-Screencap::Screencap(QObject *parent)
+Screencast::Screencast(QObject *parent)
     : QObject(parent)
     , m_initialized(false)
     , m_inProgress(false)
@@ -99,7 +99,7 @@ Screencap::Screencap(QObject *parent)
     m_thread->start();
 }
 
-Screencap::~Screencap()
+Screencast::~Screencast()
 {
     if (!m_pipeline.isNull()) {
         m_pipeline->setState(QGst::StateNull);
@@ -115,7 +115,7 @@ Screencap::~Screencap()
     m_thread->wait();
 }
 
-bool Screencap::event(QEvent *event)
+bool Screencast::event(QEvent *event)
 {
     if (event->type() == StartupEventType) {
         initialize();
@@ -125,23 +125,23 @@ bool Screencap::event(QEvent *event)
     return QObject::event(event);
 }
 
-QString Screencap::videoFileName() const
+QString Screencast::videoFileName() const
 {
     return QStringLiteral("%1/%2.ogv")
             .arg(QStandardPaths::writableLocation(QStandardPaths::MoviesLocation))
             .arg(tr("Screencast from %1").arg(QDateTime::currentDateTime().toString(QLatin1String("yyyy-MM-dd hh:mm:ss"))));
 }
 
-void Screencap::initialize()
+void Screencast::initialize()
 {
     if (m_initialized)
         return;
 
     // Interfaces
     connect(m_registry, &Client::Registry::interfacesAnnounced,
-            this, &Screencap::interfacesAnnounced);
+            this, &Screencast::interfacesAnnounced);
     connect(m_registry, &Client::Registry::interfaceAnnounced,
-            this, &Screencap::interfaceAnnounced);
+            this, &Screencast::interfaceAnnounced);
 
     // Setup registry
     m_registry->create(m_connection->display());
@@ -150,7 +150,7 @@ void Screencap::initialize()
     m_initialized = true;
 }
 
-void Screencap::process()
+void Screencast::process()
 {
     // Do not create the pipeline twice
     if (!m_pipeline.isNull())
@@ -180,15 +180,15 @@ void Screencap::process()
     m_pipeline = QGst::Parse::launch(pipelineDescr).dynamicCast<QGst::Pipeline>();
     m_appSource.setElement(m_pipeline->getElementByName("screencap"));
 
-    QGlib::connect(m_pipeline->bus(), "message::info", this, &Screencap::busMessage);
-    QGlib::connect(m_pipeline->bus(), "message::warning", this, &Screencap::busMessage);
-    QGlib::connect(m_pipeline->bus(), "message::error", this, &Screencap::busMessage);
+    QGlib::connect(m_pipeline->bus(), "message::info", this, &Screencast::busMessage);
+    QGlib::connect(m_pipeline->bus(), "message::warning", this, &Screencast::busMessage);
+    QGlib::connect(m_pipeline->bus(), "message::error", this, &Screencast::busMessage);
     m_pipeline->bus()->addSignalWatch();
 
     m_pipeline->setState(QGst::StatePlaying);
 }
 
-void Screencap::start()
+void Screencast::start()
 {
     if (m_inProgress) {
         qWarning("Cannot take another screenshot while a previous capture is in progress");
@@ -263,7 +263,7 @@ void Screencap::start()
     m_inProgress = true;
 }
 
-void Screencap::interfacesAnnounced()
+void Screencast::interfacesAnnounced()
 {
     if (!m_shm)
         qCritical("Unable to create shared memory buffers");
@@ -274,8 +274,8 @@ void Screencap::interfacesAnnounced()
     start();
 }
 
-void Screencap::interfaceAnnounced(const QByteArray &interface,
-                                   quint32 name, quint32 version)
+void Screencast::interfaceAnnounced(const QByteArray &interface,
+                                    quint32 name, quint32 version)
 {
     if (interface == Client::Shm::interfaceName())
         m_shm = m_registry->createShm(name, version);
@@ -283,7 +283,7 @@ void Screencap::interfaceAnnounced(const QByteArray &interface,
         m_screencaster = m_registry->createScreencaster(m_shm, name, version);
 }
 
-void Screencap::busMessage(const QGst::MessagePtr &message)
+void Screencast::busMessage(const QGst::MessagePtr &message)
 {
     switch (message->type()) {
     case QGst::MessageEos:
@@ -305,4 +305,4 @@ void Screencap::busMessage(const QGst::MessagePtr &message)
     }
 }
 
-#include "moc_screencap.cpp"
+#include "moc_screencast.cpp"

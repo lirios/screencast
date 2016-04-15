@@ -31,7 +31,7 @@
 #include <Qt5GStreamer/QGst/Init>
 
 #include "config.h"
-#include "screencap.h"
+#include "screencast.h"
 
 #define TR(x) QT_TRANSLATE_NOOP("Command line parser", QStringLiteral(x))
 
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
 
     // Setup application
     QGuiApplication app(argc, argv);
-    app.setApplicationName(QStringLiteral("Screen Capture"));
+    app.setApplicationName(QStringLiteral("Screencast"));
     app.setApplicationVersion(QStringLiteral(HAWAII_WORKSPACE_VERSION));
     app.setOrganizationDomain(QStringLiteral("hawaiios.org"));
     app.setOrganizationName(QStringLiteral("Hawaii"));
@@ -66,10 +66,10 @@ int main(int argc, char *argv[])
     QGst::init(&argc, &argv);
 
     // Run the application
-    Screencap *screencap = new Screencap();
+    Screencast *screencap = new Screencast();
     QGuiApplication::postEvent(screencap, new StartupEvent());
     QObject::connect(&app, &QGuiApplication::aboutToQuit,
-                     screencap, &Screencap::deleteLater);
+                     screencap, &Screencast::deleteLater);
 
     return app.exec();
 }
