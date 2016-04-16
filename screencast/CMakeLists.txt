@@ -8,6 +8,15 @@ set(SOURCES
     screencast.cpp
 )
 
+hawaii_translate_ts(QM_FILES
+                    SOURCES ${SOURCES}
+                    TEMPLATE hawaii-screencast
+                    INSTALL_DIR ${DATA_INSTALL_DIR}/hawaii-workspace/translations
+                    COMPONENT "Runtime")
+hawaii_translation_loader(SOURCES
+                          TRANSLATIONS_DIR hawaii-workspace/translations
+                          CATALOG_NAME hawaii-screencast)
+
 add_executable(hawaii-screencast ${SOURCES})
 set_target_properties(hawaii-screencast PROPERTIES
     COMPILE_FLAGS "-fexceptions")
