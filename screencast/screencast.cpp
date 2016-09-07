@@ -208,6 +208,8 @@ void Screencast::start()
         });
         connect(screencast, &Client::Screencast::frameRecorded, this,
                 [this](Client::Buffer *buffer, quint32 time, Client::Screencast::Transform transform) {
+            Q_UNUSED(time);
+
             process();
 
             QImage image = buffer->image();
