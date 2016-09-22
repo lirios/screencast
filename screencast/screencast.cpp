@@ -127,9 +127,9 @@ bool Screencast::event(QEvent *event)
 
 QString Screencast::videoFileName() const
 {
-    return QStringLiteral("%1/%2.ogv")
-            .arg(QStandardPaths::writableLocation(QStandardPaths::MoviesLocation))
-            .arg(tr("Screencast from %1").arg(QDateTime::currentDateTime().toString(QLatin1String("yyyy-MM-dd hh:mm:ss"))));
+    return QStringLiteral("%1/%2.ogv").arg(
+                QStandardPaths::writableLocation(QStandardPaths::MoviesLocation),
+                tr("Screencast from %1").arg(QDateTime::currentDateTime().toString(QLatin1String("yyyy-MM-dd hh:mm:ss"))));
 }
 
 void Screencast::initialize()
