@@ -23,7 +23,7 @@ set_target_properties(liri-screencast PROPERTIES
 target_link_libraries(liri-screencast
                       Qt5::Core
                       Qt5::Gui
-                      GreenIsland::Client
+                      Liri::WaylandClient
                       Qt5GStreamerUtils)
 
 install(TARGETS liri-screencast

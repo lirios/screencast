@@ -30,15 +30,15 @@
 #include <QtCore/QObject>
 #include <QtCore/QThread>
 
-#include <GreenIsland/Client/ClientConnection>
-#include <GreenIsland/Client/Registry>
-#include <GreenIsland/Client/Screencaster>
-#include <GreenIsland/Client/Shm>
+#include <Liri/WaylandClient/ClientConnection>
+#include <Liri/WaylandClient/Registry>
+#include <Liri/WaylandClient/Screencaster>
+#include <Liri/WaylandClient/Shm>
 
 #include <Qt5GStreamer/QGst/Pipeline>
 #include <Qt5GStreamer/QGst/Utils/ApplicationSource>
 
-using namespace GreenIsland;
+using namespace Liri;
 
 class AppSource : public QGst::Utils::ApplicationSource
 {
@@ -69,10 +69,10 @@ private:
     bool m_initialized;
     bool m_inProgress;
     QThread *m_thread;
-    Client::ClientConnection *m_connection;
-    Client::Registry *m_registry;
-    Client::Shm *m_shm;
-    Client::Screencaster *m_screencaster;
+    WaylandClient::ClientConnection *m_connection;
+    WaylandClient::Registry *m_registry;
+    WaylandClient::Shm *m_shm;
+    WaylandClient::Screencaster *m_screencaster;
 
     QSize m_size;
     qint32 m_stride;

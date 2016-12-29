@@ -30,7 +30,7 @@
 #include <QtGui/QImage>
 #include <QtGui/QScreen>
 
-#include <GreenIsland/Client/Output>
+#include <Liri/WaylandClient/Output>
 
 #include <Qt5GStreamer/QGlib/Connect>
 #include <Qt5GStreamer/QGst/Buffer>
@@ -86,8 +86,8 @@ Screencast::Screencast(QObject *parent)
     , m_initialized(false)
     , m_inProgress(false)
     , m_thread(new QThread())
-    , m_connection(Client::ClientConnection::fromQt())
-    , m_registry(new Client::Registry(this))
+    , m_connection(WaylandClient::ClientConnection::fromQt())
+    , m_registry(new WaylandClient::Registry(this))
     , m_shm(Q_NULLPTR)
     , m_screencaster(Q_NULLPTR)
     , m_size(QSize())
@@ -138,9 +138,9 @@ void Screencast::initialize()
         return;
 
     // Interfaces
-    connect(m_registry, &Client::Registry::interfacesAnnounced,
+    connect(m_registry, &WaylandClient::Registry::interfacesAnnounced,
             this, &Screencast::interfacesAnnounced);
-    connect(m_registry, &Client::Registry::interfaceAnnounced,
+    connect(m_registry, &WaylandClient::Registry::interfaceAnnounced,
             this, &Screencast::interfaceAnnounced);
 
     // Setup registry
@@ -196,24 +196,24 @@ void Screencast::start()
     }
 
     Q_FOREACH (QScreen *screen, QGuiApplication::screens()) {
-        Client::Screencast *screencast = m_screencaster->capture(Client::Output::fromQt(screen, this));
-        connect(screencast, &Client::Screencast::setupDone, this,
+        WaylandClient::Screencast *screencast = m_screencaster->capture(WaylandClient::Output::fromQt(screen, this));
+        connect(screencast, &WaylandClient::Screencast::setupDone, this,
                 [this](const QSize &size, qint32 stride) {
             m_size = size;
             m_stride = stride;
         });
-        connect(screencast, &Client::Screencast::setupFailed, this, [this] {
+        connect(screencast, &WaylandClient::Screencast::setupFailed, this, [this] {
             qCritical("Frame buffer setup failed, aborting...");
             QCoreApplication::quit();
         });
-        connect(screencast, &Client::Screencast::frameRecorded, this,
-                [this](Client::Buffer *buffer, quint32 time, Client::Screencast::Transform transform) {
+        connect(screencast, &WaylandClient::Screencast::frameRecorded, this,
+                [this](WaylandClient::Buffer *buffer, quint32 time, WaylandClient::Screencast::Transform transform) {
             Q_UNUSED(time);
 
             process();
 
             QImage image = buffer->image();
-            if (transform == Client::Screencast::TransformYInverted)
+            if (transform == WaylandClient::Screencast::TransformYInverted)
                 image = image.mirrored(false, true);
 
             QGst::BufferPtr gstBuffer = QGst::Buffer::create(image.byteCount());
@@ -279,9 +279,9 @@ void Screencast::interfacesAnnounced()
 void Screencast::interfaceAnnounced(const QByteArray &interface,
                                     quint32 name, quint32 version)
 {
-    if (interface == Client::Shm::interfaceName())
+    if (interface == WaylandClient::Shm::interfaceName())
         m_shm = m_registry->createShm(name, version);
-    else if (interface == Client::Screencaster::interfaceName())
+    else if (interface == WaylandClient::Screencaster::interfaceName())
         m_screencaster = m_registry->createScreencaster(m_shm, name, version);
 }
 
