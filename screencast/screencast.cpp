@@ -93,6 +93,8 @@ Screencast::Screencast(QObject *parent)
     , m_size(QSize())
     , m_stride(0)
 {
+    m_deferredScreencaster.initialized = false;
+
     // Wayland connection in a separate thread
     Q_ASSERT(m_connection);
     m_connection->moveToThread(m_thread);
@@ -279,10 +281,24 @@ void Screencast::interfacesAnnounced()
 void Screencast::interfaceAnnounced(const QByteArray &interface,
                                     quint32 name, quint32 version)
 {
-    if (interface == WaylandClient::Shm::interfaceName())
+    if (interface == WaylandClient::Shm::interfaceName()) {
+        // Create shm
         m_shm = m_registry->createShm(name, version);
-    else if (interface == WaylandClient::Screencaster::interfaceName())
-        m_screencaster = m_registry->createScreencaster(m_shm, name, version);
+
+        // Also create screencaster if it was deferred
+        if (!m_screencaster && m_deferredScreencaster.initialized)
+            m_screencaster = m_registry->createScreencaster(m_shm, m_deferredScreencaster.name, m_deferredScreencaster.version);
+    } else if (interface == WaylandClient::Screencaster::interfaceName()) {
+        // Create screencaster right away if we are already bound to Shm,
+        // otherwise defer the creation
+        if (m_shm) {
+            m_screencaster = m_registry->createScreencaster(m_shm, name, version);
+        } else {
+            m_deferredScreencaster.initialized = true;
+            m_deferredScreencaster.name = name;
+            m_deferredScreencaster.version = version;
+        }
+    }
 }
 
 void Screencast::busMessage(const QGst::MessagePtr &message)

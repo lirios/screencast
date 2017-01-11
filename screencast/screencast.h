@@ -74,6 +74,12 @@ private:
     WaylandClient::Shm *m_shm;
     WaylandClient::Screencaster *m_screencaster;
 
+    struct {
+        bool initialized;
+        quint32 name;
+        quint32 version;
+    } m_deferredScreencaster;
+
     QSize m_size;
     qint32 m_stride;
 
