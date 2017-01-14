@@ -8,23 +8,23 @@ set(SOURCES
     screencast.cpp
 )
 
-hawaii_translate_ts(QM_FILES
-                    SOURCES ${SOURCES}
-                    TEMPLATE hawaii-screencast
-                    INSTALL_DIR ${DATA_INSTALL_DIR}/hawaii-workspace/translations
-                    COMPONENT "Runtime")
-hawaii_translation_loader(SOURCES
-                          TRANSLATIONS_DIR hawaii-workspace/translations
-                          CATALOG_NAME hawaii-screencast)
+vibe_translate_ts(QM_FILES
+                  SOURCES ${SOURCES}
+                  TEMPLATE liri-screencast
+                  INSTALL_DIR ${DATA_INSTALL_DIR}/liri-workspace/translations
+                  COMPONENT "Runtime")
+vibe_translation_loader(SOURCES
+                        TRANSLATIONS_DIR liri-workspace/translations
+                        CATALOG_NAME liri-screencast)
 
-add_executable(hawaii-screencast ${SOURCES})
-set_target_properties(hawaii-screencast PROPERTIES
+add_executable(liri-screencast ${SOURCES})
+set_target_properties(liri-screencast PROPERTIES
     COMPILE_FLAGS "-fexceptions")
-target_link_libraries(hawaii-screencast
+target_link_libraries(liri-screencast
                       Qt5::Core
                       Qt5::Gui
                       GreenIsland::Client
                       Qt5GStreamerUtils)
 
-install(TARGETS hawaii-screencast
+install(TARGETS liri-screencast
         DESTINATION ${CMAKE_INSTALL_BINDIR})

@@ -1,16 +1,16 @@
 /****************************************************************************
- * This file is part of Hawaii.
+ * This file is part of Liri.
  *
  * Copyright (C) 2016 Pier Luigi Fiorini
  *
  * Author(s):
  *    Pier Luigi Fiorini <pierluigi.fiorini@gmail.com>
  *
- * $BEGIN_LICENSE:GPL2+$
+ * $BEGIN_LICENSE:GPL3+$
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
+ * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -127,9 +127,9 @@ bool Screencast::event(QEvent *event)
 
 QString Screencast::videoFileName() const
 {
-    return QStringLiteral("%1/%2.ogv")
-            .arg(QStandardPaths::writableLocation(QStandardPaths::MoviesLocation))
-            .arg(tr("Screencast from %1").arg(QDateTime::currentDateTime().toString(QLatin1String("yyyy-MM-dd hh:mm:ss"))));
+    return QStringLiteral("%1/%2.ogv").arg(
+                QStandardPaths::writableLocation(QStandardPaths::MoviesLocation),
+                tr("Screencast from %1").arg(QDateTime::currentDateTime().toString(QLatin1String("yyyy-MM-dd hh:mm:ss"))));
 }
 
 void Screencast::initialize()
@@ -208,6 +208,8 @@ void Screencast::start()
         });
         connect(screencast, &Client::Screencast::frameRecorded, this,
                 [this](Client::Buffer *buffer, quint32 time, Client::Screencast::Transform transform) {
+            Q_UNUSED(time);
+
             process();
 
             QImage image = buffer->image();
