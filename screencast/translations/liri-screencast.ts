@@ -4,7 +4,7 @@
 <context>
     <name>Screencast</name>
     <message>
-        <location filename="../screencast.cpp" line="132"/>
+        <location filename="../screencast.cpp" line="134"/>
         <source>Screencast from %1</source>
         <translation type="unfinished"></translation>
     </message>
