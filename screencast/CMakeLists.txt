@@ -17,7 +17,7 @@ vibe_translation_loader(SOURCES
                         TRANSLATIONS_DIR liri-workspace/translations
                         CATALOG_NAME liri-screencast)
 
-add_executable(liri-screencast ${SOURCES})
+add_executable(liri-screencast ${SOURCES} ${QM_FILES})
 set_target_properties(liri-screencast PROPERTIES
     COMPILE_FLAGS "-fexceptions")
 target_link_libraries(liri-screencast
