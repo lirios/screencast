@@ -30,10 +30,10 @@
 #include <QtCore/QObject>
 #include <QtCore/QThread>
 
-#include <Liri/WaylandClient/ClientConnection>
-#include <Liri/WaylandClient/Registry>
-#include <Liri/WaylandClient/Screencaster>
-#include <Liri/WaylandClient/Shm>
+#include <LiriWaylandClient/ClientConnection>
+#include <LiriWaylandClient/Registry>
+#include <LiriWaylandClient/Screencaster>
+#include <LiriWaylandClient/Shm>
 
 #include <Qt5GStreamer/QGst/Pipeline>
 #include <Qt5GStreamer/QGst/Utils/ApplicationSource>

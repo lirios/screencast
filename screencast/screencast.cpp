@@ -30,7 +30,7 @@
 #include <QtGui/QImage>
 #include <QtGui/QScreen>
 
-#include <Liri/WaylandClient/Output>
+#include <LiriWaylandClient/Output>
 
 #include <Qt5GStreamer/QGlib/Connect>
 #include <Qt5GStreamer/QGst/Buffer>
