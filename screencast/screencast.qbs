@@ -35,7 +35,7 @@ QtGuiApplication {
     Group {
         qbs.install: true
         qbs.installDir: lirideployment.binDir
-        fileTagsFilter: product.type
+        fileTagsFilter: "application"
     }
 
     Group {
