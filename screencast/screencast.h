@@ -48,8 +48,8 @@ public:
     bool isStopped() const;
 
 protected:
-    void needData(uint length) Q_DECL_OVERRIDE;
-    void enoughData() Q_DECL_OVERRIDE;
+    void needData(uint length) override;
+    void enoughData() override;
 
 private:
     bool m_stop;
@@ -59,11 +59,11 @@ class Screencast : public QObject
 {
     Q_OBJECT
 public:
-    Screencast(QObject *parent = Q_NULLPTR);
+    Screencast(QObject *parent = nullptr);
     ~Screencast();
 
 protected:
-    bool event(QEvent *event) Q_DECL_OVERRIDE;
+    bool event(QEvent *event) override;
 
 private:
     bool m_initialized;

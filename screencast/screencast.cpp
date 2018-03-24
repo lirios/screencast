@@ -88,8 +88,8 @@ Screencast::Screencast(QObject *parent)
     , m_thread(new QThread())
     , m_connection(WaylandClient::ClientConnection::fromQt())
     , m_registry(new WaylandClient::Registry(this))
-    , m_shm(Q_NULLPTR)
-    , m_screencaster(Q_NULLPTR)
+    , m_shm(nullptr)
+    , m_screencaster(nullptr)
     , m_size(QSize())
     , m_stride(0)
 {
@@ -197,7 +197,7 @@ void Screencast::start()
         return;
     }
 
-    Q_FOREACH (QScreen *screen, QGuiApplication::screens()) {
+    for (QScreen *screen : QGuiApplication::screens()) {
         WaylandClient::Screencast *screencast = m_screencaster->capture(WaylandClient::Output::fromQt(screen, this));
         connect(screencast, &WaylandClient::Screencast::setupDone, this,
                 [this](const QSize &size, qint32 stride) {
