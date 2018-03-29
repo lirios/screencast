@@ -5,7 +5,7 @@ QtGuiApplication {
     targetName: "liri-screencast"
 
     Depends { name: "lirideployment" }
-    Depends { name: "Qt"; submodules: ["core", "gui"] }
+    Depends { name: "Qt"; submodules: ["core", "gui"]; versionAtLeast: project.minimumQtVersion }
     Depends { name: "LiriWaylandClient" }
     Depends { name: "Qt5GStreamer.Utils" }
 
@@ -19,7 +19,7 @@ QtGuiApplication {
     }
 
     cpp.defines: [
-        'LIRIWORKSPACE_VERSION="' + project.version + '"',
+        'LIRISCREENCAST_VERSION="' + project.version + '"',
         "QT_NO_CAST_FROM_ASCII",
         "QT_NO_CAST_TO_ASCII"
     ]
@@ -40,7 +40,7 @@ QtGuiApplication {
 
     Group {
         qbs.install: true
-        qbs.installDir: lirideployment.dataDir + "/liri-workspace/translations"
+        qbs.installDir: lirideployment.dataDir + "/liri-screencast/translations"
         fileTagsFilter: "qm"
     }
 }
