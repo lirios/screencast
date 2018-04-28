@@ -1,7 +1,7 @@
 [main]
 host = https://www.transifex.com
 
-[liri-workspace.screencast-ts]
+[liri-screencast.app]
 type = QT
 source_lang = en
 source_file = src/screencast/translations/liri-screencast.ts
