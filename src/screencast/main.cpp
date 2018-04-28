@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     // Setup application
     QGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Screencast"));
-    app.setApplicationVersion(QStringLiteral(LIRIWORKSPACE_VERSION));
+    app.setApplicationVersion(QStringLiteral(LIRISCREENCAST_VERSION));
     app.setOrganizationDomain(QStringLiteral("liri.io"));
     app.setOrganizationName(QStringLiteral("Liri"));
 
