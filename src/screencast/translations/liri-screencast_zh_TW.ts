@@ -1,10 +1,10 @@
-<?xml version="1.0" ?><!DOCTYPE TS><TS language="ca" version="2.1">
+<?xml version="1.0" ?><!DOCTYPE TS><TS language="zh_TW" version="2.1">
 <context>
     <name>Screencast</name>
     <message>
         <location filename="../screencast.cpp" line="134"/>
         <source>Screencast from %1</source>
-        <translation>Screencast des de %1</translation>
+        <translation>從 %1 螢幕錄影</translation>
     </message>
 </context>
 </TS>
