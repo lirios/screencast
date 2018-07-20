@@ -24,40 +24,38 @@
  * $END_LICENSE$
  ***************************************************************************/
 
-#include <QtCore/QCommandLineParser>
-#include <QtCore/QCommandLineOption>
-#include <QtGui/QGuiApplication>
+#include <QCommandLineParser>
+#include <QCommandLineOption>
+#include <QCoreApplication>
+#include <QDBusConnection>
 
 #include <Qt5GStreamer/QGst/Init>
 
 #include "screencast.h"
 
-#define TR(x) QT_TRANSLATE_NOOP("Command line parser", QStringLiteral(x))
+#define TR(x) QT_TRANSLATE_NOOP("Command line parser", QLatin1String(x))
 
 int main(int argc, char *argv[])
 {
-    // Force using the wayland QPA plugin
-    qputenv("QT_QPA_PLATFORM", QByteArrayLiteral("wayland"));
-
     // Setup application
-    QGuiApplication app(argc, argv);
-    app.setApplicationName(QStringLiteral("Screencast"));
-    app.setApplicationVersion(QStringLiteral(LIRISCREENCAST_VERSION));
-    app.setOrganizationDomain(QStringLiteral("liri.io"));
-    app.setOrganizationName(QStringLiteral("Liri"));
+    QCoreApplication app(argc, argv);
+    app.setApplicationName(QLatin1String("ScreenCast"));
+    app.setApplicationVersion(QLatin1String(LIRISCREENCAST_VERSION));
+    app.setOrganizationDomain(QLatin1String("liri.io"));
+    app.setOrganizationName(QLatin1String("Liri"));
 
     // Command line parser
     QCommandLineParser parser;
-    parser.setApplicationDescription(QStringLiteral("Simple screen capture program for Liri OS"));
+    parser.setApplicationDescription(QLatin1String("Simple screen capture program for Liri OS"));
     parser.addHelpOption();
     parser.addVersionOption();
 
     // Parse command line
     parser.process(app);
 
-    // Need to be running with wayland QPA
-    if (!QGuiApplication::platformName().startsWith(QStringLiteral("wayland"))) {
-        qCritical("This application requires a Wayland session");
+    // Check if the D-Bus session bus is available
+    if (!QDBusConnection::sessionBus().isConnected()) {
+        qWarning("Cannot connect to the D-Bus session bus.");
         return 1;
     }
 
@@ -66,8 +64,8 @@ int main(int argc, char *argv[])
 
     // Run the application
     Screencast *screencap = new Screencast();
-    QGuiApplication::postEvent(screencap, new StartupEvent());
-    QObject::connect(&app, &QGuiApplication::aboutToQuit,
+    QCoreApplication::postEvent(screencap, new StartupEvent());
+    QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      screencap, &Screencast::deleteLater);
 
     return app.exec();

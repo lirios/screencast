@@ -27,75 +27,40 @@
 #ifndef SCREENCAST_H
 #define SCREENCAST_H
 
-#include <QtCore/QObject>
-#include <QtCore/QThread>
-
-#include <LiriWaylandClient/ClientConnection>
-#include <LiriWaylandClient/Registry>
-#include <LiriWaylandClient/Screencaster>
-#include <LiriWaylandClient/Shm>
+#include <QEvent>
+#include <QObject>
 
 #include <Qt5GStreamer/QGst/Pipeline>
-#include <Qt5GStreamer/QGst/Utils/ApplicationSource>
 
-using namespace Liri;
-
-class AppSource : public QGst::Utils::ApplicationSource
-{
-public:
-    AppSource();
-
-    bool isStopped() const;
-
-protected:
-    void needData(uint length) override;
-    void enoughData() override;
-
-private:
-    bool m_stop;
-};
+class IoLiriShellOutputsInterface;
+class IoLiriShellScreenCastInterface;
 
 class Screencast : public QObject
 {
     Q_OBJECT
 public:
-    Screencast(QObject *parent = nullptr);
+    explicit Screencast(QObject *parent = nullptr);
     ~Screencast();
 
 protected:
     bool event(QEvent *event) override;
 
 private:
-    bool m_initialized;
-    bool m_inProgress;
-    QThread *m_thread;
-    WaylandClient::ClientConnection *m_connection;
-    WaylandClient::Registry *m_registry;
-    WaylandClient::Shm *m_shm;
-    WaylandClient::Screencaster *m_screencaster;
-
-    struct {
-        bool initialized;
-        quint32 name;
-        quint32 version;
-    } m_deferredScreencaster;
-
-    QSize m_size;
-    qint32 m_stride;
-
+    bool m_initialized = false;
+    IoLiriShellOutputsInterface *m_outputs = nullptr;
+    IoLiriShellScreenCastInterface *m_screenCast = nullptr;
+    int m_nodeId = -1;
     QGst::PipelinePtr m_pipeline;
-    AppSource m_appSource;
 
     QString videoFileName() const;
 
     void initialize();
-    void process();
-    void start();
 
 private Q_SLOTS:
-    void interfacesAnnounced();
-    void interfaceAnnounced(const QByteArray &interface, quint32 name, quint32 version);
     void busMessage(const QGst::MessagePtr &message);
+    void handleStreamReady(uint nodeId);
+    void handleStartStreaming();
+    void handleStopStreaming();
 };
 
 class StartupEvent : public QEvent

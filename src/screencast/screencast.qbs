@@ -5,8 +5,7 @@ QtGuiApplication {
     targetName: "liri-screencast"
 
     Depends { name: "lirideployment" }
-    Depends { name: "Qt"; submodules: ["core", "gui"]; versionAtLeast: project.minimumQtVersion }
-    Depends { name: "LiriWaylandClient" }
+    Depends { name: "Qt"; submodules: ["core", "dbus"]; versionAtLeast: project.minimumQtVersion }
     Depends { name: "Qt5GStreamer.Utils" }
 
     condition: {
@@ -24,12 +23,25 @@ QtGuiApplication {
         "QT_NO_CAST_TO_ASCII"
     ]
 
-    files: ["*.cpp", "*.h"]
+    files: [
+        "main.cpp",
+        "screencast.cpp",
+        "screencast.h",
+    ]
 
     Group {
         name: "Translations"
         files: ["*_*.ts"]
         prefix: "translations/"
+    }
+
+    Group {
+        name: "D-Bus Interfaces"
+        files: [
+            "io.liri.Shell.Outputs.xml",
+            "io.liri.Shell.ScreenCast.xml",
+        ]
+        fileTags: ["qt.dbus.interface"]
     }
 
     Group {

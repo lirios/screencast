@@ -26,11 +26,6 @@
 
 #include <QtCore/QDateTime>
 #include <QtCore/QStandardPaths>
-#include <QtGui/QGuiApplication>
-#include <QtGui/QImage>
-#include <QtGui/QScreen>
-
-#include <LiriWaylandClient/Output>
 
 #include <Qt5GStreamer/QGlib/Connect>
 #include <Qt5GStreamer/QGst/Buffer>
@@ -40,7 +35,13 @@
 #include <Qt5GStreamer/QGst/Parse>
 #include <Qt5GStreamer/QGst/Sample>
 
+#include "outputs_interface.h"
 #include "screencast.h"
+#include "screencast_interface.h"
+
+const QString dbusService = QLatin1String("io.liri.Session");
+const QString outputsDBusPath = QLatin1String("/io/liri/Shell/Outputs");
+const QString screenCastDBusPath = QLatin1String("/ScreenCast");
 
 /*
  * StartupEvent
@@ -54,67 +55,31 @@ StartupEvent::StartupEvent()
 {
 }
 
-AppSource::AppSource()
-    : QGst::Utils::ApplicationSource()
-    , m_stop(false)
-{
-}
-
-bool AppSource::isStopped() const
-{
-    return m_stop;
-}
-
-void AppSource::needData(uint length)
-{
-    Q_UNUSED(length);
-
-    m_stop = false;
-}
-
-void AppSource::enoughData()
-{
-    m_stop = true;
-}
-
 /*
  * Screencast
  */
 
 Screencast::Screencast(QObject *parent)
     : QObject(parent)
-    , m_initialized(false)
-    , m_inProgress(false)
-    , m_thread(new QThread())
-    , m_connection(WaylandClient::ClientConnection::fromQt())
-    , m_registry(new WaylandClient::Registry(this))
-    , m_shm(nullptr)
-    , m_screencaster(nullptr)
-    , m_size(QSize())
-    , m_stride(0)
 {
-    m_deferredScreencaster.initialized = false;
-
-    // Wayland connection in a separate thread
-    Q_ASSERT(m_connection);
-    m_connection->moveToThread(m_thread);
-    m_thread->start();
 }
 
 Screencast::~Screencast()
 {
+    if (m_outputs) {
+        m_outputs->deleteLater();
+        m_outputs = nullptr;
+    }
+
+    if (m_screenCast) {
+        m_screenCast->deleteLater();
+        m_screenCast = nullptr;
+    }
+
     if (!m_pipeline.isNull()) {
         m_pipeline->setState(QGst::StateNull);
         m_pipeline.clear();
     }
-
-    delete m_screencaster;
-    delete m_shm;
-    delete m_registry;
-    delete m_connection;
-
-    m_thread->quit();
-    m_thread->wait();
 }
 
 bool Screencast::event(QEvent *event)
@@ -139,166 +104,36 @@ void Screencast::initialize()
     if (m_initialized)
         return;
 
-    // Interfaces
-    connect(m_registry, &WaylandClient::Registry::interfacesAnnounced,
-            this, &Screencast::interfacesAnnounced);
-    connect(m_registry, &WaylandClient::Registry::interfaceAnnounced,
-            this, &Screencast::interfaceAnnounced);
-
-    // Setup registry
-    m_registry->create(m_connection->display());
-    m_registry->setup();
-
     m_initialized = true;
-}
 
-void Screencast::process()
-{
-    // Do not create the pipeline twice
-    if (!m_pipeline.isNull())
-        return;
-
-    // Setup appsrc
-    m_appSource.setSize(-1);
-    m_appSource.setStreamType(QGst::AppStreamTypeStream);
-    m_appSource.setFormat(QGst::FormatTime);
-    m_appSource.enableBlock(false);
-    m_appSource.setLatency(-1, -1);
-    m_appSource.setMaxBytes(INT_MAX);
-
-    // Set appsrc caps
-    QString capsString = QStringLiteral("video/x-raw,format=RGB,width=%1,height=%2,depth=32,bpp=24,framerate=0/1")
-            .arg(m_size.width()).arg(m_size.height());
-    QGst::CapsPtr caps = QGst::Caps::fromString(qPrintable(capsString));
-    m_appSource.setCaps(caps);
-
-    // Create the pipeline
-    QString pipelineDescr = QStringLiteral("appsrc name=\"screencap\" is-live=true ! " \
-                                           "videoconvert ! queue ! theoraenc ! oggmux ! " \
-                                           "filesink location=\"%1\"").arg(videoFileName());
-    pipelineDescr = QStringLiteral("appsrc name=\"screencap\" is-live=true ! videoconvert ! vp9enc min_quantizer=13 max_quantizer=13 cpu-used=5 deadline=1000000 threads=2 ! queue ! webmmux ! filesink location=pippo");
-    pipelineDescr = QStringLiteral("appsrc name=\"screencap\" ! videoconvert ! queue ! theoraenc ! oggmux ! filesink location=pippo");
-    qInfo("GStreamer pipeline: %s", qPrintable(pipelineDescr));
-    m_pipeline = QGst::Parse::launch(pipelineDescr).dynamicCast<QGst::Pipeline>();
-    m_appSource.setElement(m_pipeline->getElementByName("screencap"));
-
-    QGlib::connect(m_pipeline->bus(), "message::info", this, &Screencast::busMessage);
-    QGlib::connect(m_pipeline->bus(), "message::warning", this, &Screencast::busMessage);
-    QGlib::connect(m_pipeline->bus(), "message::error", this, &Screencast::busMessage);
-    m_pipeline->bus()->addSignalWatch();
-
-    m_pipeline->setState(QGst::StatePlaying);
-}
-
-void Screencast::start()
-{
-    if (m_inProgress) {
-        qWarning("Cannot take another screenshot while a previous capture is in progress");
+    m_outputs = new IoLiriShellOutputsInterface(
+                dbusService, outputsDBusPath, QDBusConnection::sessionBus());
+    if (!m_outputs->isValid()) {
+        qWarning("Cannot find D-Bus service, please run this program under Liri Shell.");
+        m_outputs->deleteLater();
+        m_outputs = nullptr;
+        QCoreApplication::exit(1);
         return;
     }
 
-    for (QScreen *screen : QGuiApplication::screens()) {
-        WaylandClient::Screencast *screencast = m_screencaster->capture(WaylandClient::Output::fromQt(screen, this));
-        connect(screencast, &WaylandClient::Screencast::setupDone, this,
-                [this](const QSize &size, qint32 stride) {
-            m_size = size;
-            m_stride = stride;
-        });
-        connect(screencast, &WaylandClient::Screencast::setupFailed, this, [this] {
-            qCritical("Frame buffer setup failed, aborting...");
-            QCoreApplication::quit();
-        });
-        connect(screencast, &WaylandClient::Screencast::frameRecorded, this,
-                [this](WaylandClient::Buffer *buffer, quint32 time, WaylandClient::Screencast::Transform transform) {
-            Q_UNUSED(time);
-
-            process();
-
-            QImage image = buffer->image();
-            if (transform == WaylandClient::Screencast::TransformYInverted)
-                image = image.mirrored(false, true);
-
-            QGst::BufferPtr gstBuffer = QGst::Buffer::create(image.byteCount());
-            QGst::BufferFlags flags(QGst::BufferFlagLive);
-            gstBuffer->setFlags(flags);
-
-            //GST_BUFFER_PTS(buffer) = now;
-
-            QGst::MapInfo mapInfo;
-            if (gstBuffer->map(mapInfo, QGst::MapWrite)) {
-                memcpy(mapInfo.data(), image.bits(), mapInfo.size());
-                gstBuffer->unmap(mapInfo);
-            } else {
-                qWarning("Failed to map frame buffer, skipping a frame");
-                return;
-            }
-
-            if (!m_appSource.isStopped()) {
-                QGst::FlowReturn ret = m_appSource.pushBuffer(gstBuffer);
-                switch (ret) {
-                case QGst::FlowEos:
-                    qWarning("Failed to push buffer: end of stream");
-                    break;
-                case QGst::FlowNotLinked:
-                    qWarning("Failed to push buffer: not linked");
-                    break;
-                case QGst::FlowFlushing:
-                    qWarning("Failed to push buffer: flushing");
-                    break;
-                case QGst::FlowNotNegotiated:
-                    qWarning("Failed to push buffer: not negotiated");
-                    break;
-                case QGst::FlowNotSupported:
-                    qWarning("Failed to push buffer: not supported");
-                    break;
-                case QGst::FlowError:
-                    qWarning("Failed to push buffer: generic error");
-                    break;
-                case QGst::FlowOk:
-                    break;
-                default:
-                    qWarning("Failed to push buffer: unknown error");
-                    break;
-                }
-            }
-        });
+    m_screenCast = new IoLiriShellScreenCastInterface(
+                dbusService, screenCastDBusPath, QDBusConnection::sessionBus());
+    if (!m_screenCast->isValid()) {
+        qWarning("Cannot find D-Bus service, please run this program under Liri Shell.");
+        m_outputs->deleteLater();
+        m_outputs = nullptr;
+        m_screenCast->deleteLater();
+        m_screenCast = nullptr;
+        QCoreApplication::exit(1);
+        return;
     }
-
-    m_inProgress = true;
-}
-
-void Screencast::interfacesAnnounced()
-{
-    if (!m_shm)
-        qCritical("Unable to create shared memory buffers");
-
-    if (!m_screencaster)
-        qCritical("Wayland compositor doesn't have screenshooter capabilities");
-
-    start();
-}
-
-void Screencast::interfaceAnnounced(const QByteArray &interface,
-                                    quint32 name, quint32 version)
-{
-    if (interface == WaylandClient::Shm::interfaceName()) {
-        // Create shm
-        m_shm = m_registry->createShm(name, version);
-
-        // Also create screencaster if it was deferred
-        if (!m_screencaster && m_deferredScreencaster.initialized)
-            m_screencaster = m_registry->createScreencaster(m_shm, m_deferredScreencaster.name, m_deferredScreencaster.version);
-    } else if (interface == WaylandClient::Screencaster::interfaceName()) {
-        // Create screencaster right away if we are already bound to Shm,
-        // otherwise defer the creation
-        if (m_shm) {
-            m_screencaster = m_registry->createScreencaster(m_shm, name, version);
-        } else {
-            m_deferredScreencaster.initialized = true;
-            m_deferredScreencaster.name = name;
-            m_deferredScreencaster.version = version;
-        }
-    }
+    connect(m_screenCast, &IoLiriShellScreenCastInterface::streamReady,
+            this, &Screencast::handleStreamReady);
+    connect(m_screenCast, &IoLiriShellScreenCastInterface::startStreaming,
+            this, &Screencast::handleStartStreaming);
+    connect(m_screenCast, &IoLiriShellScreenCastInterface::stopStreaming,
+            this, &Screencast::handleStopStreaming);
+    m_screenCast->captureScreen(m_outputs->primaryOutput());
 }
 
 void Screencast::busMessage(const QGst::MessagePtr &message)
@@ -321,6 +156,43 @@ void Screencast::busMessage(const QGst::MessagePtr &message)
     default:
         break;
     }
+}
+
+void Screencast::handleStreamReady(uint nodeId)
+{
+    m_nodeId = nodeId;
+
+    // Create the pipeline
+    QString pipelineDescr = QStringLiteral(
+                "pipewiresrc path=%1 ! " \
+                "videoconvert ! queue ! theoraenc ! oggmux ! " \
+                "filesink location=\"%2\"").arg(QString::number(m_nodeId)).arg(videoFileName());
+    qInfo("GStreamer pipeline: %s", qPrintable(pipelineDescr));
+    m_pipeline = QGst::Parse::launch(pipelineDescr).dynamicCast<QGst::Pipeline>();
+
+    QGlib::connect(m_pipeline->bus(), "message::info", this, &Screencast::busMessage);
+    QGlib::connect(m_pipeline->bus(), "message::warning", this, &Screencast::busMessage);
+    QGlib::connect(m_pipeline->bus(), "message::error", this, &Screencast::busMessage);
+    m_pipeline->bus()->addSignalWatch();
+
+    m_pipeline->setState(QGst::StatePaused);
+
+    handleStartStreaming();
+}
+
+void Screencast::handleStartStreaming()
+{
+    Q_ASSERT(m_nodeId >= 0);
+
+    m_pipeline->setState(QGst::StatePlaying);
+}
+
+void Screencast::handleStopStreaming()
+{
+    if (m_pipeline.isNull())
+        return;
+
+    m_pipeline->setState(QGst::StateNull);
 }
 
 #include "moc_screencast.cpp"

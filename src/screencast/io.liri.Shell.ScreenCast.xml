@@ -1,0 +1,16 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+  <interface name="io.liri.Shell.ScreenCast">
+    <signal name="streamReady">
+      <arg name="nodeId" type="u" direction="out"/>
+    </signal>
+    <signal name="startStreaming">
+    </signal>
+    <signal name="stopStreaming">
+    </signal>
+    <method name="captureScreen">
+      <arg type="b" direction="out"/>
+      <arg name="handle" type="o" direction="in"/>
+    </method>
+  </interface>
+</node>

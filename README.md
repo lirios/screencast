@@ -20,8 +20,6 @@ The following modules and their dependencies are required:
  * [qbs](http://code.qt.io/cgit/qbs/qbs.git) >= 1.9.0
  * [qbs-shared](https://github.com/lirios/qbs-shared.git) >= 1.2.0
  * [qt-gstreamer](https://cgit.freedesktop.org/gstreamer/qt-gstreamer)
- * [fluid](https://github.com/lirios/fluid.git)
- * [liri-wayland](https://github.com/lirios/wayland.git)
 
 ## Installation
 
