@@ -4,5 +4,6 @@ host = https://www.transifex.com
 [liri-screencast.app]
 type = QT
 source_lang = en
+liri_source_directory = src/screencast
 source_file = src/screencast/translations/liri-screencast.ts
 file_filter = src/screencast/translations/liri-screencast_<lang>.ts
