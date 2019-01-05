@@ -28,6 +28,9 @@
 #include <QCommandLineOption>
 #include <QCoreApplication>
 #include <QDBusConnection>
+#include <QLibraryInfo>
+#include <QStandardPaths>
+#include <QTranslator>
 
 #include <Qt5GStreamer/QGst/Init>
 
