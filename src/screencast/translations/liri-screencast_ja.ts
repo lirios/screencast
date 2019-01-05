@@ -4,7 +4,7 @@
     <message>
         <location filename="../screencast.cpp" line="134"/>
         <source>Screencast from %1</source>
-        <translation type="unfinished"/>
+        <translation>%1 からスクリーンキャスト</translation>
     </message>
 </context>
 </TS>
