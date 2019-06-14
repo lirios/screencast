@@ -2,9 +2,9 @@
 <context>
     <name>Screencast</name>
     <message>
-        <location filename="../screencast.cpp" line="134"/>
+        <location filename="../screencast.cpp" line="99"/>
         <source>Screencast from %1</source>
-        <translation>Запись с экрана %1</translation>
+        <translation>Запись с экрана от %1</translation>
     </message>
 </context>
 </TS>
