@@ -28,4 +28,4 @@ find_package(Qt5 "${QT_MIN_VERSION}"
 )
 
 ## Add subdirectories:
-add_subdirectory(src/screencast)
+#add_subdirectory(src/screencast)
