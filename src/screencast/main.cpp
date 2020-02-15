@@ -29,10 +29,11 @@
 #include <QCoreApplication>
 #include <QDBusConnection>
 #include <QLibraryInfo>
+#include <QLocale>
 #include <QStandardPaths>
 #include <QTranslator>
 
-#include <Qt5GStreamer/QGst/Init>
+#include <gst/gst.h>
 
 #include "screencast.h"
 
@@ -106,7 +107,7 @@ int main(int argc, char *argv[])
     }
 
     // Initialize QtGStreamer
-    QGst::init(&argc, &argv);
+    gst_init(nullptr, nullptr);
 
     // Run the application
     Screencast *screencap = new Screencast();
@@ -114,5 +115,7 @@ int main(int argc, char *argv[])
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      screencap, &Screencast::deleteLater);
 
-    return app.exec();
+    int result = app.exec();
+    gst_deinit();
+    return result;
 }

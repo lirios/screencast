@@ -27,17 +27,9 @@
 #include <QtCore/QDateTime>
 #include <QtCore/QStandardPaths>
 
-#include <Qt5GStreamer/QGlib/Connect>
-#include <Qt5GStreamer/QGst/Buffer>
-#include <Qt5GStreamer/QGst/Bus>
-#include <Qt5GStreamer/QGst/Init>
-#include <Qt5GStreamer/QGst/Message>
-#include <Qt5GStreamer/QGst/Parse>
-#include <Qt5GStreamer/QGst/Sample>
-
-#include "outputs_interface.h"
 #include "screencast.h"
-#include "screencast_interface.h"
+
+#include <gst/gst.h>
 
 const QString dbusService = QLatin1String("io.liri.Session");
 const QString outputsDBusPath = QLatin1String("/io/liri/Shell/Outputs");
@@ -66,20 +58,6 @@ Screencast::Screencast(QObject *parent)
 
 Screencast::~Screencast()
 {
-    if (m_outputs) {
-        m_outputs->deleteLater();
-        m_outputs = nullptr;
-    }
-
-    if (m_screenCast) {
-        m_screenCast->deleteLater();
-        m_screenCast = nullptr;
-    }
-
-    if (!m_pipeline.isNull()) {
-        m_pipeline->setState(QGst::StateNull);
-        m_pipeline.clear();
-    }
 }
 
 bool Screencast::event(QEvent *event)
@@ -105,94 +83,88 @@ void Screencast::initialize()
         return;
 
     m_initialized = true;
-
-    m_outputs = new IoLiriShellOutputsInterface(
-                dbusService, outputsDBusPath, QDBusConnection::sessionBus());
-    if (!m_outputs->isValid()) {
-        qWarning("Cannot find D-Bus service, please run this program under Liri Shell.");
-        m_outputs->deleteLater();
-        m_outputs = nullptr;
-        QCoreApplication::exit(1);
-        return;
-    }
-
-    m_screenCast = new IoLiriShellScreenCastInterface(
-                dbusService, screenCastDBusPath, QDBusConnection::sessionBus());
-    if (!m_screenCast->isValid()) {
-        qWarning("Cannot find D-Bus service, please run this program under Liri Shell.");
-        m_outputs->deleteLater();
-        m_outputs = nullptr;
-        m_screenCast->deleteLater();
-        m_screenCast = nullptr;
-        QCoreApplication::exit(1);
-        return;
-    }
-    connect(m_screenCast, &IoLiriShellScreenCastInterface::streamReady,
-            this, &Screencast::handleStreamReady);
-    connect(m_screenCast, &IoLiriShellScreenCastInterface::startStreaming,
-            this, &Screencast::handleStartStreaming);
-    connect(m_screenCast, &IoLiriShellScreenCastInterface::stopStreaming,
-            this, &Screencast::handleStopStreaming);
-    m_screenCast->captureScreen(m_outputs->primaryOutput());
-}
-
-void Screencast::busMessage(const QGst::MessagePtr &message)
-{
-    switch (message->type()) {
-    case QGst::MessageEos:
-        m_pipeline->setState(QGst::StateNull);
-        QCoreApplication::quit();
-        break;
-    case QGst::MessageInfo:
-        qInfo("%s", qPrintable(message.staticCast<QGst::InfoMessage>()->error().message()));
-        break;
-    case QGst::MessageWarning:
-        qWarning("%s", qPrintable(message.staticCast<QGst::WarningMessage>()->error().message()));
-        break;
-    case QGst::MessageError:
-        m_pipeline->setState(QGst::StateNull);
-        qCritical("%s", qPrintable(message.staticCast<QGst::ErrorMessage>()->error().message()));
-        break;
-    default:
-        break;
-    }
 }
 
 void Screencast::handleStreamReady(uint nodeId)
 {
-    m_nodeId = nodeId;
-
-    // Create the pipeline
-    QString pipelineDescr = QStringLiteral(
-                "pipewiresrc path=%1 ! " \
-                "videoconvert ! queue ! theoraenc ! oggmux ! " \
-                "filesink location=\"%2\"").arg(QString::number(m_nodeId)).arg(videoFileName());
-    qInfo("GStreamer pipeline: %s", qPrintable(pipelineDescr));
-    m_pipeline = QGst::Parse::launch(pipelineDescr).dynamicCast<QGst::Pipeline>();
-
-    QGlib::connect(m_pipeline->bus(), "message::info", this, &Screencast::busMessage);
-    QGlib::connect(m_pipeline->bus(), "message::warning", this, &Screencast::busMessage);
-    QGlib::connect(m_pipeline->bus(), "message::error", this, &Screencast::busMessage);
-    m_pipeline->bus()->addSignalWatch();
-
-    m_pipeline->setState(QGst::StatePaused);
-
-    handleStartStreaming();
-}
-
-void Screencast::handleStartStreaming()
-{
-    Q_ASSERT(m_nodeId >= 0);
-
-    m_pipeline->setState(QGst::StatePlaying);
-}
-
-void Screencast::handleStopStreaming()
-{
-    if (m_pipeline.isNull())
+    // Create the pipeline and the elements
+    GstElement *source = gst_element_factory_make("pipewiresrc", "source");
+    GstElement *convert = gst_element_factory_make("videoconvert", "convert");
+    GstElement *queue = gst_element_factory_make("queue", "queue");
+    GstElement *encode = gst_element_factory_make("theoraenc", "encode");
+    GstElement *mux = gst_element_factory_make("oggmux", "mux");
+    GstElement *sink = gst_element_factory_make("filesink", "sink");
+    GstElement *pipeline = gst_pipeline_new("record");
+    if (!pipeline || !source || !convert || !queue || !encode || !mux || !sink) {
+        qWarning("Not all elements could be created");
         return;
+    }
 
-    m_pipeline->setState(QGst::StateNull);
+    // Build the pipeline (the source will be linked later)
+    gst_bin_add_many(GST_BIN(pipeline), source, convert, queue, encode, mux, sink, nullptr);
+    if (!gst_element_link_many(convert, queue, encode, mux, sink, nullptr)) {
+        qWarning("Elements could not be linked");
+        gst_object_unref(pipeline);
+        return;
+    }
+
+    // Set node ID and sink location
+    g_object_set(source, "path", nodeId, nullptr);
+    g_object_set(sink, "location", qPrintable(videoFileName()), nullptr);
+
+    // Start playing
+    GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    if (ret == GST_STATE_CHANGE_FAILURE) {
+        qWarning("Unable to set the pipeline to the playing state");
+        gst_object_unref(pipeline);
+        return;
+    }
+
+    // Listen to the bus
+    bool terminate = false;
+    GstBus *bus = gst_element_get_bus(pipeline);
+    do {
+        GstMessage *msg = gst_bus_timed_pop_filtered(bus, GST_CLOCK_TIME_NONE,
+                                                     GstMessageType(GST_MESSAGE_STATE_CHANGED | GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+
+        if (!msg)
+            continue;
+
+        GError *err = nullptr;
+        gchar *debug_info = nullptr;
+
+        switch (GST_MESSAGE_TYPE(msg)) {
+        case GST_MESSAGE_ERROR:
+            gst_message_parse_error(msg, &err, &debug_info);
+            qWarning("Error received from element %s: %s", GST_OBJECT_NAME(msg->src), err->message);
+            qWarning("Debugging information: %s", debug_info ? debug_info : "none");
+            g_clear_error(&err);
+            g_free(debug_info);
+            terminate = true;
+            break;
+        case GST_MESSAGE_EOS:
+            qInfo("End of stream reached");
+            terminate = true;
+            break;
+        case GST_MESSAGE_STATE_CHANGED:
+            // We are only interested in state-changed messages from the pipeline
+            if (GST_MESSAGE_SRC(msg) == GST_OBJECT(pipeline)) {
+                GstState oldState, newState, pendingState;
+                gst_message_parse_state_changed(msg, &oldState, &newState, &pendingState);
+                qInfo("Pipeline state changed from %s to %s",
+                      gst_element_state_get_name(oldState),
+                      gst_element_state_get_name(newState));
+            }
+            break;
+        default:
+            qCritical("Unexpected message received");
+            break;
+        }
+
+        gst_message_unref(msg);
+    } while (!terminate);
+
+    gst_object_unref(bus);
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
 }
-
-#include "moc_screencast.cpp"

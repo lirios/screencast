@@ -30,11 +30,6 @@
 #include <QEvent>
 #include <QObject>
 
-#include <Qt5GStreamer/QGst/Pipeline>
-
-class IoLiriShellOutputsInterface;
-class IoLiriShellScreenCastInterface;
-
 class Screencast : public QObject
 {
     Q_OBJECT
@@ -47,20 +42,13 @@ protected:
 
 private:
     bool m_initialized = false;
-    IoLiriShellOutputsInterface *m_outputs = nullptr;
-    IoLiriShellScreenCastInterface *m_screenCast = nullptr;
-    int m_nodeId = -1;
-    QGst::PipelinePtr m_pipeline;
 
     QString videoFileName() const;
 
     void initialize();
 
 private Q_SLOTS:
-    void busMessage(const QGst::MessagePtr &message);
     void handleStreamReady(uint nodeId);
-    void handleStartStreaming();
-    void handleStopStreaming();
 };
 
 class StartupEvent : public QEvent
