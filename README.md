@@ -5,7 +5,6 @@ Screencast
 [![GitHub release](https://img.shields.io/github/release/lirios/screencast.svg)](https://github.com/lirios/screencast)
 [![Build Status](https://travis-ci.org/lirios/screencast.svg?branch=develop)](https://travis-ci.org/lirios/screencast)
 [![GitHub issues](https://img.shields.io/github/issues/lirios/screencast.svg)](https://github.com/lirios/screencast/issues)
-[![Maintained](https://img.shields.io/maintenance/yes/2018.svg)](https://github.com/lirios/screencast/commits/develop)
 
 Utility to record a video of the screen of a Liri desktop.
 
