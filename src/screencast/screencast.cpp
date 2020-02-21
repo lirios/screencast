@@ -4,16 +4,72 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  ***************************************************************************/
 
-#include <QtCore/QDateTime>
-#include <QtCore/QStandardPaths>
+#include <QCoreApplication>
+#include <QDateTime>
+#include <QDBusArgument>
+#include <QPoint>
+#include <QSize>
+#include <QStandardPaths>
 
+#include "portal.h"
 #include "screencast.h"
+#include "sigwatch.h"
 
 #include <gst/gst.h>
 
-const QString dbusService = QLatin1String("io.liri.Session");
-const QString outputsDBusPath = QLatin1String("/io/liri/Shell/Outputs");
-const QString screenCastDBusPath = QLatin1String("/ScreenCast");
+Q_LOGGING_CATEGORY(lcScreencast, "liri.screencast")
+
+static gboolean bus_watch_cb(GstBus *bus, GstMessage *msg, gpointer user_data)
+{
+    Stream *stream = static_cast<Stream *>(user_data);
+    Q_ASSERT(stream);
+
+    g_autoptr (GError) err = nullptr;
+    gchar *debug_info = nullptr;
+
+    switch (GST_MESSAGE_TYPE(msg)) {
+    case GST_MESSAGE_INFO:
+        gst_message_parse_error(msg, &err, &debug_info);
+        qCInfo(lcScreencast, "Message received from element %s: %s", GST_OBJECT_NAME(msg->src), err->message);
+        g_clear_error(&err);
+        break;
+    case GST_MESSAGE_WARNING:
+        gst_message_parse_error(msg, &err, &debug_info);
+        qCWarning(lcScreencast, "Warning received from element %s: %s", GST_OBJECT_NAME(msg->src), err->message);
+        g_clear_error(&err);
+        break;
+    case GST_MESSAGE_ERROR:
+        gst_message_parse_error(msg, &err, &debug_info);
+        qCWarning(lcScreencast, "Error received from element %s: %s", GST_OBJECT_NAME(msg->src), err->message);
+        if (debug_info)
+            qCWarning(lcScreencast, "Debugging information: %s", debug_info);
+        g_clear_error(&err);
+        g_free(debug_info);
+        gst_bus_remove_watch(bus);
+        delete stream;
+        break;
+    case GST_MESSAGE_EOS:
+        qCInfo(lcScreencast, "End of stream reached");
+        gst_bus_remove_watch(bus);
+        delete stream;
+        break;
+    case GST_MESSAGE_STATE_CHANGED:
+        // We are only interested in state-changed messages from the pipeline
+        if (GST_MESSAGE_SRC(msg) == GST_OBJECT(stream->pipeline)) {
+            GstState oldState, newState, pendingState;
+            gst_message_parse_state_changed(msg, &oldState, &newState, &pendingState);
+            qCInfo(lcScreencast,
+                   "Pipeline state changed from %s to %s",
+                  gst_element_state_get_name(oldState),
+                  gst_element_state_get_name(newState));
+        }
+        break;
+    default:
+        break;
+    }
+
+    return true;
+}
 
 /*
  * StartupEvent
@@ -33,7 +89,15 @@ StartupEvent::StartupEvent()
 
 Screencast::Screencast(QObject *parent)
     : QObject(parent)
+    , m_portal(new Portal(this))
 {
+    connect(m_portal, &Portal::streamReady, this, &Screencast::handleStreamReady);
+    connect(m_portal, &Portal::sessionClosed, this, &Screencast::handleSessionClosed);
+
+    auto *sigwatch = new UnixSignalWatcher(this);
+    sigwatch->watchForSignal(SIGINT);
+    sigwatch->watchForSignal(SIGTERM);
+    connect(sigwatch, &UnixSignalWatcher::unixSignal, this, &Screencast::shutdown);
 }
 
 Screencast::~Screencast()
@@ -63,88 +127,77 @@ void Screencast::initialize()
         return;
 
     m_initialized = true;
+
+    m_portal->createSession();
 }
 
-void Screencast::handleStreamReady(uint nodeId)
+void Screencast::handleStreamReady(int fd, uint nodeId, const QVariantMap &map)
 {
-    // Create the pipeline and the elements
-    GstElement *source = gst_element_factory_make("pipewiresrc", "source");
-    GstElement *convert = gst_element_factory_make("videoconvert", "convert");
-    GstElement *queue = gst_element_factory_make("queue", "queue");
-    GstElement *encode = gst_element_factory_make("theoraenc", "encode");
-    GstElement *mux = gst_element_factory_make("oggmux", "mux");
-    GstElement *sink = gst_element_factory_make("filesink", "sink");
-    GstElement *pipeline = gst_pipeline_new("record");
-    if (!pipeline || !source || !convert || !queue || !encode || !mux || !sink) {
-        qWarning("Not all elements could be created");
-        return;
-    }
+    // Position
+    int x = 0, y = 0;
+    QDBusArgument dbusPosition = map[QStringLiteral("position")].value<QDBusArgument>();
+    dbusPosition.beginArray();
+    dbusPosition >> x >> y;
+    dbusPosition.endArray();
 
-    // Build the pipeline (the source will be linked later)
-    gst_bin_add_many(GST_BIN(pipeline), source, convert, queue, encode, mux, sink, nullptr);
-    if (!gst_element_link_many(convert, queue, encode, mux, sink, nullptr)) {
-        qWarning("Elements could not be linked");
-        gst_object_unref(pipeline);
-        return;
-    }
+    // Size
+    int w = 0, h = 0;
+    QDBusArgument dbusSize = map[QStringLiteral("size")].value<QDBusArgument>();
+    dbusSize.beginArray();
+    dbusSize >> w >> h;
+    dbusSize.endArray();
 
-    // Set node ID and sink location
-    g_object_set(source, "path", nodeId, nullptr);
-    g_object_set(sink, "location", qPrintable(videoFileName()), nullptr);
+    qCInfo(lcScreencast, "Stream %d", nodeId);
+    qCInfo(lcScreencast, "Position %d, %d", x, y);
+    qCInfo(lcScreencast, "Size %dx%d", w, h);
+
+    // Create the pipeline
+    QString launch = QStringLiteral("pipewiresrc fd=%1 path=%2 ! " \
+                                    "rawvideoparse width=%3 height=%4 format=bgrx framerate=1 ! " \
+                                    "autovideoconvert ! queue ! theoraenc ! oggmux ! " \
+                                    "filesink location=\"%5\"").arg(fd).arg(nodeId).arg(w).arg(h).arg(videoFileName());
+    GstElement *pipeline = gst_parse_launch(launch.toUtf8(), nullptr);
+    GstBus *bus = gst_element_get_bus(pipeline);
+
+    Stream *stream = new Stream();
+    stream->screencast = this;
+    stream->pipeline = pipeline;
+    m_streams.append(stream);
+    gst_bus_add_watch(bus, bus_watch_cb, stream);
 
     // Start playing
     GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
-        qWarning("Unable to set the pipeline to the playing state");
+        qCWarning(lcScreencast, "Unable to set the pipeline to the playing state");
+        gst_bus_remove_watch(bus);
+        delete stream;
+    }
+}
+
+void Screencast::handleSessionClosed(const QVariantMap &map)
+{
+    Q_UNUSED(map)
+
+    // TODO: Not clear what map contains, anyway we should kill the stream,
+    // but which one?
+}
+
+void Screencast::shutdown()
+{
+    qDeleteAll(m_streams);
+    QCoreApplication::quit();
+}
+
+Stream::~Stream()
+{
+    if (pipeline) {
+        gst_element_set_state(pipeline, GST_STATE_NULL);
         gst_object_unref(pipeline);
-        return;
+        pipeline = nullptr;
     }
 
-    // Listen to the bus
-    bool terminate = false;
-    GstBus *bus = gst_element_get_bus(pipeline);
-    do {
-        GstMessage *msg = gst_bus_timed_pop_filtered(bus, GST_CLOCK_TIME_NONE,
-                                                     GstMessageType(GST_MESSAGE_STATE_CHANGED | GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
-
-        if (!msg)
-            continue;
-
-        GError *err = nullptr;
-        gchar *debug_info = nullptr;
-
-        switch (GST_MESSAGE_TYPE(msg)) {
-        case GST_MESSAGE_ERROR:
-            gst_message_parse_error(msg, &err, &debug_info);
-            qWarning("Error received from element %s: %s", GST_OBJECT_NAME(msg->src), err->message);
-            qWarning("Debugging information: %s", debug_info ? debug_info : "none");
-            g_clear_error(&err);
-            g_free(debug_info);
-            terminate = true;
-            break;
-        case GST_MESSAGE_EOS:
-            qInfo("End of stream reached");
-            terminate = true;
-            break;
-        case GST_MESSAGE_STATE_CHANGED:
-            // We are only interested in state-changed messages from the pipeline
-            if (GST_MESSAGE_SRC(msg) == GST_OBJECT(pipeline)) {
-                GstState oldState, newState, pendingState;
-                gst_message_parse_state_changed(msg, &oldState, &newState, &pendingState);
-                qInfo("Pipeline state changed from %s to %s",
-                      gst_element_state_get_name(oldState),
-                      gst_element_state_get_name(newState));
-            }
-            break;
-        default:
-            qCritical("Unexpected message received");
-            break;
-        }
-
-        gst_message_unref(msg);
-    } while (!terminate);
-
-    gst_object_unref(bus);
-    gst_element_set_state(pipeline, GST_STATE_NULL);
-    gst_object_unref(pipeline);
+    if (screencast) {
+        screencast->m_streams.removeOne(this);
+        screencast = nullptr;
+    }
 }

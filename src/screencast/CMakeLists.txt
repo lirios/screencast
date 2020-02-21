@@ -11,8 +11,13 @@ liri_add_executable(LiriScreencast
         "liri-screencast"
     SOURCES
         main.cpp
+        portal.cpp
+        portal.h
         screencast.cpp
         screencast.h
+        sigwatch.cpp
+        sigwatch.h
+        sigwatch_p.h
         ${LiriScreencast_QM_FILES}
     DEFINES
         QT_NO_CAST_FROM_ASCII

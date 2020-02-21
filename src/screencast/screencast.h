@@ -8,7 +8,15 @@
 #define SCREENCAST_H
 
 #include <QEvent>
+#include <QLoggingCategory>
 #include <QObject>
+
+#include <gst/gstelement.h>
+
+Q_DECLARE_LOGGING_CATEGORY(lcScreencast)
+
+class Portal;
+class Stream;
 
 class Screencast : public QObject
 {
@@ -21,14 +29,30 @@ protected:
     bool event(QEvent *event) override;
 
 private:
+    friend class Stream;
+
     bool m_initialized = false;
+    Portal *m_portal = nullptr;
+    QVector<Stream *> m_streams;
 
     QString videoFileName() const;
 
     void initialize();
 
 private Q_SLOTS:
-    void handleStreamReady(uint nodeId);
+    void handleStreamReady(int fd, uint nodeId, const QVariantMap &map);
+    void handleSessionClosed(const QVariantMap &map);
+    void shutdown();
+};
+
+class Stream
+{
+public:
+    Stream() = default;
+    ~Stream();
+
+    Screencast *screencast = nullptr;
+    GstElement *pipeline = nullptr;
 };
 
 class StartupEvent : public QEvent
