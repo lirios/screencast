@@ -8,7 +8,7 @@ source /usr/local/share/liri-travis/functions
 travis_start "install_packages"
 msg "Install packages..."
 dnf install -y \
-     qt5-gstreamer-devel
+     gstreamer1-devel
 travis_end "install_packages"
 
 # Install artifacts
