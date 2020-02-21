@@ -13,9 +13,6 @@
 #include "portal.h"
 #include "screencast.h"
 
-// https://github.com/flatpak/xdg-desktop-portal/blob/master/data/org.freedesktop.portal.ScreenCast.xml
-// https://gitlab.gnome.org/feaneron/obs-xdg-portal/blob/master/obs-xdg-portal.c
-
 Q_DECLARE_METATYPE(Portal::Stream)
 Q_DECLARE_METATYPE(Portal::Streams)
 
