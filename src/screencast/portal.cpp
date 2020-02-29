@@ -101,7 +101,7 @@ void Portal::createSessionHandler(uint response, const QVariantMap &results)
 
     msg << QVariant::fromValue(m_sessionHandle)
         << QVariantMap { { QStringLiteral("multiple"), false },
-                         { QStringLiteral("types"), Monitor },
+                         { QStringLiteral("types"), uint(Monitor) },
                          { QStringLiteral("handle_token"), newRequestToken() } };
 
     QDBusPendingCall pendingCall = QDBusConnection::sessionBus().asyncCall(msg);
