@@ -147,15 +147,22 @@ void Screencast::handleStreamReady(int fd, uint nodeId, const QVariantMap &map)
     dbusSize >> w >> h;
     dbusSize.endArray();
 
+    // Format
+    QString format = QStringLiteral("bgrx");
+    if (map.contains(QStringLiteral("format"))) {
+        QDBusArgument dbusFormat = map[QStringLiteral("format")].value<QDBusArgument>();
+        dbusFormat >> format;
+    }
+
     qCInfo(lcScreencast, "Stream %d", nodeId);
     qCInfo(lcScreencast, "Position %d, %d", x, y);
     qCInfo(lcScreencast, "Size %dx%d", w, h);
 
     // Create the pipeline
     QString launch = QStringLiteral("pipewiresrc fd=%1 path=%2 ! " \
-                                    "rawvideoparse width=%3 height=%4 format=bgrx framerate=1 ! " \
+                                    "rawvideoparse width=%3 height=%4 format=%5 framerate=1 ! " \
                                     "autovideoconvert ! queue ! theoraenc ! oggmux ! " \
-                                    "filesink location=\"%5\"").arg(fd).arg(nodeId).arg(w).arg(h).arg(videoFileName());
+                                    "filesink location=\"%6\"").arg(fd).arg(nodeId).arg(w).arg(h).arg(format).arg(videoFileName());
     GstElement *pipeline = gst_parse_launch(launch.toUtf8(), nullptr);
     GstBus *bus = gst_element_get_bus(pipeline);
 

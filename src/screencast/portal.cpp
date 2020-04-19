@@ -180,7 +180,7 @@ void Portal::startHandler(uint response, const QVariantMap &results)
                     self->deleteLater();
 
                     if (!reply.isValid()) {
-                        qCWarning(lcScreencast, "Failed to open pipewire remote: %s",
+                        qCWarning(lcScreencast, "Failed to open PipeWire remote: %s",
                                   qPrintable(reply.error().message()));
                         return;
                     }

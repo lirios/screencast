@@ -29,16 +29,16 @@ public:
     Q_ENUM(AvailableCursorModes)
 
     typedef struct {
-        uint nodeId;
+        quint32 nodeId = 0;
         QVariantMap map;
     } Stream;
-    typedef QList<Stream> Streams;
+    typedef QVector<Stream> Streams;
 
     explicit Portal(QObject *parent = nullptr);
 
     void createSession();
 
-signals:
+Q_SIGNALS:
     void streamReady(int fd, uint nodeId, const QVariantMap &map);
     void sessionClosed(const QVariantMap &map);
 
@@ -48,7 +48,7 @@ private:
     QString newRequestToken() const;
     QString newSessionToken() const;
 
-private slots:
+private Q_SLOTS:
     void createSessionHandler(uint response, const QVariantMap &results);
     void selectSourcesHandler(uint response, const QVariantMap &results);
     void startHandler(uint response, const QVariantMap &results);
