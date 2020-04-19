@@ -1,0 +1,7 @@
+[
+  {
+    "type": "ts",
+    "directory": "src/screencast",
+    "output_path": "translations/screencast/screencast.ts"
+  }
+]
