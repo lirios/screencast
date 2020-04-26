@@ -3,7 +3,7 @@ Screencast
 
 [![License](https://img.shields.io/badge/license-GPLv3.0-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 [![GitHub release](https://img.shields.io/github/release/lirios/screencast.svg)](https://github.com/lirios/screencast)
-[![Build Status](https://travis-ci.org/lirios/screencast.svg?branch=develop)](https://travis-ci.org/lirios/screencast)
+[![CI](https://github.com/lirios/screencast/workflows/CI/badge.svg?branch=develop)](https://github.com/lirios/screencast/actions?query=workflow%3ACI)
 [![GitHub issues](https://img.shields.io/github/issues/lirios/screencast.svg)](https://github.com/lirios/screencast/issues)
 
 Utility to record a video of the screen of a Liri desktop.
