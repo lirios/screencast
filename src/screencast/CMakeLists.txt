@@ -1,5 +1,5 @@
 # Translations
-file(GLOB LiriScreencast_TRANSLATIONS "${CMAKE_CURRENT_SOURCE_DIR}/translations/../../*_*.ts")
+file(GLOB LiriScreencast_TRANSLATIONS "${CMAKE_CURRENT_SOURCE_DIR}/../../translations/*_*.ts")
 qt5_add_translation(LiriScreencast_QM_FILES ${LiriScreencast_TRANSLATIONS})
 install(FILES ${LiriScreencast_QM_FILES}
         DESTINATION "${INSTALL_DATADIR}/liri-screencast/translations")
