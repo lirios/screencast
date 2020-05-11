@@ -23,7 +23,7 @@ jobs:
           - clang
         container:
           - suse-qt512
-          - suse-qt513
+          - suse-qt514
           - suse-qt515
     runs-on: ubuntu-latest
     container:
