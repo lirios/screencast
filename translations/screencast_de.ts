@@ -4,7 +4,7 @@
     <message>
         <location filename="../src/screencast/screencast.cpp" line="121"/>
         <source>Screencast from %1</source>
-        <translation>Bildschirmaufnahme vom %1</translation>
+        <translation>Bildschirmaufnahme von %1</translation>
     </message>
 </context>
 </TS>
