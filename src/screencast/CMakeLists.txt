@@ -28,3 +28,5 @@ liri_add_executable(LiriScreencast
         Qt5::DBus
         PkgConfig::GStreamer
 )
+
+liri_finalize_executable(LiriScreencast)
